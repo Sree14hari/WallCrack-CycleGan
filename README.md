@@ -1,100 +1,126 @@
-# Wall Crack CycleGAN: Artifact Removal for Structural Inspection
+# CycleGAN for Crack Image Restoration and Feature Preservation Analysis
 
-This project uses a Cycle-Consistent Generative Adversarial Network (CycleGAN) to remove common visual artifacts, such as motion blur and shadows, from images of cracks in concrete walls. The goal is to improve the accuracy of both human and automated structural analysis by restoring images to a "clean" state.
+This project demonstrates the use of a CycleGAN model to restore degraded images of concrete cracks by removing blur and shadow artifacts. A key component of this work is a detailed quantitative analysis to verify that the restoration process preserves the physical dimensions (width) of the cracks, making the model suitable as a pre-processing step for automated inspection systems.
 
-The model is evaluated on its ability to produce visually clear images, its quantitative performance using **PSNR** and **SSIM** metrics, and, most importantly, its capacity to preserve the physical dimensions of the crack after artifact removal.
+## Visual Demonstration
 
------
+The model is effective at removing both blur and shadow artifacts while maintaining the structural integrity of the original crack.
 
-## 🖼️ Visual Results
 
-Here are examples of the model's performance in removing blur and shadow artifacts.
+## Methodology
 
-| Artifact | Before (Input) | After (Restored) |
-| :---: | :---: | :---: |
-| **Blur** | +Blurred) | +Unblurred) |
-| **Shadow** | +Shadowed) | +Unshadowed) |
+The project follows a comprehensive end-to-end pipeline:
 
------
+1.  **Data Preparation**: A custom dataset was created by applying blur and shadow augmentations to a set of clean crack images.
+2.  **Model Training**: A CycleGAN model was trained on this unpaired dataset to learn the translation from degraded images (Domain A) to clean images (Domain B).
+3.  **Performance Evaluation**: The trained model was evaluated using standard image quality metrics (PSNR and SSIM).
+4.  **Feature Preservation Analysis**: A detailed analysis, using a custom script based on image skeletonization and distance transforms, was conducted to measure and compare the crack widths before and after restoration.
 
-## ⚙️ Methodology
+## Dataset
 
-### Model Selection: CycleGAN
+The model was trained and evaluated on a custom-built dataset derived from a set of 1000 clean, cracked wall images.
 
-A **CycleGAN** was chosen for this task because it excels at unpaired image-to-image translation. This is ideal for our use case, as it's impractical to obtain perfectly-paired real-world images of the exact same crack with and without artifacts. The model learns the general characteristics of an "artifact domain" (blurry/shadowed images) and a "clean domain" and translates between them.
+  * **Training Set**:
+      * `trainB` (Clean): 800 images.
+      * `trainA` (Augmented): 2400 images (800 blurred, 800 shadowed, 800 with both).
+  * **Testing Set**:
+      * `testB` (Clean Ground Truth): 200 images.
+      * `testA` (Augmented): 600 images (200 for each augmentation type).
 
-### Dataset Preparation
+## Setup and Installation
 
-A dataset of \~1500 images was systematically prepared.
+This project is based on the official `pytorch-CycleGAN-and-pix2pix` repository.
 
-  * **Domain A (Artifact Images):** This domain was created by applying augmentations to clean images to simulate real-world problems.
-      * Gaussian Blur (500 images)
-      * Randomized Synthetic Shadows (500 images)
-      * Combination of Blur & Shadow (500 images)
-  * **Domain B (Clean Images):** This domain contained the original, artifact-free images of cracked walls.
+1.  **Clone the repository:**
+
+    ```bash
+    git clone https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix.git
+    cd pytorch-CycleGAN-and-pix2pix
+    ```
+
+2.  **Install base dependencies:**
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3.  **Install additional libraries for analysis:**
+
+    ```bash
+    pip install pandas scikit-image opencv-python seaborn scipy matplotlib
+    ```
+
+## Usage
 
 ### Training
 
-The model was trained locally using the official [pytorch-CycleGAN-and-pix2pix](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix) repository.
+The model was trained for 50 epochs using the following command. The best-performing checkpoint was selected for final evaluation.
 
-  * **Hardware:** NVIDIA GeForce RTX 4050 Laptop GPU (6 GB VRAM)
-  * **Software:** Python, PyTorch
-  * **Generator Architecture:** `resnet_9blocks`
-  * **Training Parameters:**
-      * **Epochs:** 50
-      * **Batch Size:** 1
-      * **Image Size:** 256x256 pixels
+```bash
+python train.py --dataroot "path/to/your/Data" --name crack_wall_cleanup_model --model cycle_gan --gpu_ids 0 --batch_size 1 --load_size 256
+```
 
------
+### Testing and Evaluation
 
-## 📊 Evaluation and Results
+To generate restored images from a specific checkpoint (e.g., epoch 50) for the test set, the following commands are used:
 
-The model's performance was evaluated quantitatively and by analyzing its ability to preserve the physical integrity of the cracks.
+1.  **Rename the model file**: In the `./checkpoints/crack_wall_cleanup_model/` directory, rename `50_net_G_A.pth` to `50_net_G.pth`.
+2.  **Run the test script**:
+    ```bash
+    python test.py --dataroot "path/to/Data/testA" --name crack_wall_cleanup_model --model test --epoch 50 --num_test 1000
+    ```
 
-### Quantitative Metrics (PSNR & SSIM)
+### Analysis
 
-The model was evaluated every 5 epochs. The **Peak Signal-to-Noise Ratio (PSNR)** and **Structural Similarity Index (SSIM)** were calculated, with higher values indicating better image quality. The model trained for **50 epochs** yielded the best results.
+The final analysis, including statistical calculations and plot generation, is performed using the scripts provided in the `output.ipynb` Jupyter Notebook.
 
-| Epoch | Average PSNR (dB) | Average SSIM |
-| :---: | :---: | :---: |
-| 20 | 24.66 | 0.8731 |
-| 25 | 24.34 | 0.8602 |
-| 30 | 24.96 | 0.8819 |
-| 35 | 24.67 | 0.8854 |
-| 40 | 24.66 | 0.8868 |
-| 45 | 25.03 | 0.8891 |
-| **50** | **25.11** | **0.8903** |
+## Results and Analysis
+
+The final model from **Epoch 50** was selected as the best-performing model based on quantitative metrics.
+
+### Quantitative Model Performance
+
+| Metric | Score |
+| :--- | :--- |
+| **Average PSNR** | 25.11 dB |
+| **Average SSIM** | 0.8903 |
+
+These scores indicate a high level of image quality and structural similarity between the restored images and the original clean images.
 
 ### Crack Width Preservation Analysis
 
-A critical evaluation was performed to ensure the restoration process did not alter the physical measurements of the cracks. A custom Python script was used to measure the maximum crack width (in mm) from the clean, artifact, and restored images.
+A detailed analysis was performed to measure the impact of restoration on the physical dimensions of the cracks.
 
-#### Blur Restoration
+#### Blur Dataset Analysis
 
-The model successfully reduced the exaggerated width caused by blur, restoring it close to the original dimension.
+**Descriptive Statistics:**
+The blur artifact increased the mean measured crack width by over 1mm, while the CycleGAN restored it to near the original value. The model reduced the mean error by \~70% and the error variance by over 98%.
 
-```
-Clean Width:     3.375 mm
-Blurred Width:   5.423 mm  (Distorted)
-Restored Width:  3.059 mm
---------------------------
-Accuracy: 90.64%
-```
+| Metric | Clean Width (mm) | Blurred Width (mm) | Restored Width (mm) | Error (Blurred) | Error (CycleGAN) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Mean** | 2.763 | 3.798 | 2.965 | 1.091 | 0.344 |
+| **Variance** | 1.375 | 7.235 | 1.240 | 3.652 | 0.052 |
 
-#### Shadow Restoration
+**Correlation:**
+The heatmap shows a very strong positive correlation (**0.95**) between the clean and restored crack widths, while the correlation with the blurred width was much lower (**0.77**).
 
-Shadows caused a significant overestimation of crack width. The model effectively removed the shadow and restored the measurement with high accuracy.
+#### Shadow Dataset Analysis
 
-```
-Clean Width:     3.375 mm
-Shadowed Width:  14.519 mm (Distorted)
-Restored Width:  3.171 mm
---------------------------
-Accuracy: 93.94%
-```
+**Descriptive Statistics:**
+The shadow artifact caused a massive distortion, increasing the mean measured width from \~2.7mm to \~14mm. The CycleGAN model successfully corrected this, reducing the mean error by **\~97%**.
 
------
+| Metric | Clean Width (mm) | Shadowed Width (mm) | Restored Width (mm) | Error (Shadowed) | Error (CycleGAN) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Mean** | 2.733 | 14.023 | 2.901 | 11.291 | 0.377 |
+| **Variance** | 0.991 | 6.129 | 0.904 | 6.468 | 0.053 |
 
-## ✅ Conclusion
+**Correlation and Error Distribution:**
+The visualizations from the report, such as the scatter plot and box plot, provide clear evidence of the model's success. The scatter plot shows a tight clustering of restored widths around the ideal 1:1 line. The box plot demonstrates a dramatic reduction in both the median error and error variance when comparing the shadowed images to the CycleGAN-restored images.
 
-This project successfully demonstrates that a CycleGAN can effectively remove blur and shadow artifacts from images of concrete cracks. The final model achieved strong quantitative scores (**PSNR: 25.11 dB**, **SSIM: 0.8903**) and, more importantly, proved its practical value by preserving the structural dimensions of the cracks with over **90% accuracy**. This highlights the technology's potential for enhancing automated structural inspection systems.
+## Conclusion
+
+This project successfully demonstrates that a CycleGAN model can be effectively trained to restore images of concrete cracks degraded by blur and shadow artifacts. The quantitative analysis proves that the model not only improves the visual quality but also preserves the dimensional integrity of the cracks, making it a viable and valuable pre-processing tool for automated structural health monitoring and inspection systems.
+
+## Acknowledgments
+
+This project utilizes code from the `pytorch-CycleGAN-and-pix2pix` repository by Jun-Yan Zhu and Taesung Park.
